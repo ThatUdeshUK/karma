@@ -1,6 +1,6 @@
 from bs4 import BeautifulSoup as bs, element
 import http.cookiejar as cookiejar
-import mechanize
+from mechanize import Browser
 import json
 from datetime import datetime, timedelta
 import argparse
@@ -13,7 +13,7 @@ LOGIN_URL = 'https://ugvle.ucsc.cmb.ac.lk/login/index.php'
 CALENDER_URL = 'https://ugvle.ucsc.cmb.ac.lk/calendar/view.php?view=day&course=1&time='
 
 cj = cookiejar.CookieJar()
-br = mechanize.Browser()
+br = Browser()
 br.set_cookiejar(cj)
 
 db = None
@@ -70,7 +70,8 @@ def get_assignments(date):
             'url': url,
             'description': des,
             'time': str(time),
-            'date': str(date).split(" ")[0]
+            'date': str(date).split(" ")[0],
+            'synced': False
         })
 
     return assignments

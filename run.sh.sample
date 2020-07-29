@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+source venv/bin/activate
+
+python scrape.py -d 30 <username> <password>
+python sync.py

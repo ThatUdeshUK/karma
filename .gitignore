@@ -139,3 +139,6 @@ cython_debug/
 
 # Data
 data/*.json
+credentials.json
+*.pickle
+run.sh
