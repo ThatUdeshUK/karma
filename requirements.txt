@@ -2,3 +2,6 @@ beautifulsoup4
 requests
 mechanize
 html5lib
+argparse
+tqdm
+tinydb

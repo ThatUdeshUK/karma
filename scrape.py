@@ -3,8 +3,12 @@ import http.cookiejar as cookiejar
 import mechanize
 import json
 from datetime import datetime, timedelta
+import argparse
+from tqdm import tqdm
+from tinydb import TinyDB, Query
+from utility.files import create_if_not_exist, create_dir_if_not_exist
 
-# URLs 
+# URLs
 LOGIN_URL = 'https://ugvle.ucsc.cmb.ac.lk/login/index.php'
 CALENDER_URL = 'https://ugvle.ucsc.cmb.ac.lk/calendar/view.php?view=day&course=1&time='
 
@@ -12,12 +16,15 @@ cj = cookiejar.CookieJar()
 br = mechanize.Browser()
 br.set_cookiejar(cj)
 
-def login_get_index():
+db = None
+
+
+def login_get_index(username, password):
     br.open(LOGIN_URL)
 
     br.select_form(nr=0)
-    br.form['username'] = '2017cs091'
-    br.form['password'] = 'uc*cCE0980uk'
+    br.form['username'] = username
+    br.form['password'] = password
     br.submit()
 
     return br.response().read()
@@ -55,7 +62,7 @@ def get_assignments(date):
             des = str(''.join(list(map(lambda x: str(x), des[0].contents))))
         else:
             des = ""
-        
+
         assignments.append({
             'id': event_id,
             'title': title,
@@ -70,11 +77,33 @@ def get_assignments(date):
 
 
 def main():
-    # index_bs = bs(login_get_index(), features="html5lib")
-    # course_list = get_course_list(index_bs)
-    # print(json.dumps(course_list, indent=4))
+    parser = argparse.ArgumentParser(description='Scrape UGVLE assignments.')
+    parser.add_argument('username', type=str, help='UGVLE username')
+    parser.add_argument('password', type=str, help='UGVLE password')
+    parser.add_argument('-d', '--days', type=int,
+                        help='Count of days to be scraped', default=30)
+    parser.add_argument('-s', '--store', type=str,
+                        help='Data store directory', default='data')
 
-    login_get_index()
+    args = parser.parse_args()
+
+    username = args.username
+    password = args.password
+    days = args.days
+    store = args.store
+
+    print("Initiallizing store")
+    store_path = store + "/assignments.json"
+    create_dir_if_not_exist(store)
+    create_if_not_exist(store_path, data={})
+
+    global db
+    db = TinyDB(store_path)
+    print("No. assignments in store:", len(db), '\n')
+
+    print("Fetching assignments for", days, "days\n")
+    print("Logging into UGVLE\n")
+    login_get_index(username, password)
 
     def init_day(date):
         return datetime(date.year, date.month, date.day)
@@ -83,15 +112,27 @@ def main():
         date += timedelta(days=1)
         return date
 
+    print("Collecting assignments")
     assignments = []
     day = init_day(datetime.now())
-    for _ in range(30):
+    for _ in tqdm(range(days)):
         assignments.extend(get_assignments(day))
         day = increment_day(day)
 
-    print(json.dumps(assignments, indent=4))
-    print(len(assignments))
+    print("\nStoring assignments")
+    added_count = 0
+
+    Assignment = Query()
+    for assignment in tqdm(assignments):
+        existing = db.get(Assignment.id == assignment['id'])
+        if not existing:
+            db.insert(assignment)
+            added_count += 1
+
+    print("\nAdded", added_count, "documents\n")
+
+    print("Scraping finished")
 
 
-if __name__=="__main__":
-    main() 
+if __name__ == "__main__":
+    main()
